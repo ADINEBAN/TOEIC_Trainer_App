@@ -1,0 +1,19 @@
+# Build outputs
+target/
+*.class
+
+# Pre-seeded offline Maven repository (sandbox build cache, ~110MB).
+# Recreate with: python3 dev-mvnfetch.py pom.xml --local-repo ./.m2-repo
+.m2-repo/
+
+# Uploaded files (local dev storage)
+uploads/
+
+# Environment
+.env
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.DS_Store
