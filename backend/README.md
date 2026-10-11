@@ -35,10 +35,10 @@ và câu hỏi mẫu (V3). Kiểm tra: `GET http://localhost:8080/api/health`.
 | `JWT_SECRET` | **production: có** | chuỗi dev | Secret ký JWT, **tối thiểu 32 byte**. Tạo: `openssl rand -base64 48`. |
 | `JWT_EXPIRATION_MS` | không | `86400000` (24h) | Thời hạn token đăng nhập |
 | `SPEECHIFY_API_KEY` | không* | (trống) | Key Speechify (server-side). Trống → `/api/tts` trả 503 `{fallback:true}`, app dùng giọng máy. |
-| `AI_API_KEY` | không* | (trống) | Key nhà cung cấp AI, chuẩn OpenAI-compatible (server-side). Trống → các endpoint `/api/ai/**` trả 503 với thông báo rõ ràng. |
-| `AI_API_BASE` | không | `https://api.openai.com/v1` | Base URL của AI provider |
-| `AI_MODEL` | không | `gpt-4o-mini` | Model cho chat/tutor/phân tích |
-| `AI_VISION_MODEL` | không | `gpt-4o-mini` | Model cho ảnh (photo-to-word, OCR) |
+| `AI_API_KEY` | không* | (trống) | Key nhà cung cấp AI của Google Gemini (server-side). Trống → các endpoint `/api/ai/**` trả 503 với thông báo rõ ràng. |
+| `AI_API_BASE` | không | `https://generativelanguage.googleapis.com/v1beta` | Base URL của provider Gemini |
+| `AI_MODEL` | không | `gemini-3.1-flash-lite` | Model cho chat/tutor/phân tích |
+| `AI_VISION_MODEL` | không | `gemini-3.1-flash-lite` | Model cho ảnh (photo-to-word, OCR) |
 | `AI_DAILY_CHAR_LIMIT` | không | `200000` | Hạn mức ký tự AI mỗi user mỗi ngày (input+output, cộng dồn mọi tính năng) |
 | `CORS_ALLOWED_ORIGINS` | không | `*` | Danh sách origin cách nhau dấu phẩy. Production nên ghi rõ domain. |
 | `STORAGE_DIR` | không | `./uploads` | Thư mục lưu ảnh/tài liệu tải lên (**tạm thời local** — xem mục Supabase Storage) |
@@ -118,8 +118,9 @@ Quy tắc an toàn schema: mọi thay đổi sau này đều **cộng thêm**
 
 ## Các điểm tích hợp cần biết
 
-- **Speechify**: `POST {app.speechify.api-url}` với
-  `{input, voice_id, audio_format:"mp3", model:"simba-3.2"}`.
+- **Speechify**: `POST https://api.speechify.ai/v1/audio/speech` với
+  `{input, voice_id, audio_format:"mp3", model:"simba-3.2"}`. Speechify trả
+  JSON có `audio_data` dạng Base64; backend giải mã thành MP3 để app phát.
   Cache toàn hệ thống theo `sha256(text|voice|model)` trong `tts_cache`
   (audio lưu dạng `bytea`). Số ký tự tính phí được log mỗi lần tổng hợp mới.
 - **AI**: mọi cuộc gọi qua `AiClient` — kiểm tra `AI_DAILY_CHAR_LIMIT`

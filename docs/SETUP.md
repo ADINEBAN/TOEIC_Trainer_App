@@ -14,21 +14,21 @@
 
 ## 2. Speechify (giọng George)
 
-1. Đăng ký tại `platform.speechify.ai` → **API Keys** → tạo key mới, copy ngay.
+1. Mở [Speechify API Keys](https://platform.speechify.ai/w/ws_01m4k2fa0pe49bjxyak2p6tkym/api-keys)
+   → tạo key mới, copy ngay.
 2. Đặt `SPEECHIFY_API_KEY=<key>` cho backend (biến môi trường server).
+   Backend gọi `https://api.speechify.ai/v1/audio/speech` với voice `george`
+   và model `simba-3.2`; key chỉ được lưu ở backend.
 3. Chưa có key: API `/api/tts` trả `503 {fallback:true}` và app tự dùng giọng máy,
    hiển thị rõ "giọng dự phòng".
 
 ## 3. AI (5 tính năng AI for Life)
 
-1. Chuẩn bị một API key OpenAI-compatible (ví dụ OpenAI, hoặc bất kỳ provider nào
-   có endpoint `/v1/chat/completions`).
-2. Đặt `AI_API_KEY`, `AI_API_BASE` (mặc định `https://api.openai.com/v1`),
-   `AI_MODEL` (mặc định `gpt-4o-mini`).
+1. Chuẩn bị một API key Google Gemini (ví dụ từ Google AI Studio).
+2. Đặt `AI_API_KEY`, `AI_API_BASE` (mặc định `https://generativelanguage.googleapis.com/v1beta`),
+   `AI_MODEL` (mặc định `gemini-3.1-flash-lite`).
 3. Chưa có key: các màn hình AI hiển thị đúng thông báo từ backend, không giả lập.
-4. Chấm giọng nói phía server cần provider hỗ trợ transcription
-   (`AI_TRANSCRIBE_MODEL`, mặc định `whisper-1`); chưa có thì Speaking Coach dùng
-   chấm heuristic trên transcript và ghi rõ `fallback:true`.
+4. Chấm giọng nói phía server cần provider hỗ trợ transcription; với Gemini tùy theo model có thể dùng dạng `generateContent` thay vì `/audio/transcriptions`, nên nếu muốn dùng chức năng speech-to-text thì nên cấu hình model tương thích hoặc giữ fallback heuristic.
 
 ## 4. Chạy trên điện thoại thật (Expo Go)
 

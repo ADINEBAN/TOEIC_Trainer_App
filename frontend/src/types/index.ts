@@ -115,12 +115,12 @@ export interface Notebook {
 export interface SemanticRelation {
   word: string;
   wordId?: string | null;
-  relation: 'synonym' | 'antonym' | 'wordFamily' | 'collocation';
+  relation: 'synonym' | 'antonym' | 'wordFamily' | 'collocation' | 'related';
   example?: string | null;
 }
 
 export interface SemanticGraph {
-  center: Word;
+  center: Pick<Word, 'word'> & Partial<Omit<Word, 'word'>>;
   relations: SemanticRelation[];
 }
 

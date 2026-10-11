@@ -17,6 +17,7 @@ const RELATION_LABELS: Record<SemanticRelation['relation'], { label: string; col
   antonym: { label: 'Trái nghĩa', color: colors.danger },
   wordFamily: { label: 'Cùng họ từ', color: colors.teal },
   collocation: { label: 'Hay đi kèm', color: colors.orange },
+  related: { label: 'Liên quan', color: colors.primary },
 };
 
 export default function SemanticScreen() {
@@ -68,7 +69,7 @@ export default function SemanticScreen() {
     }
   };
 
-  const groups = (['synonym', 'antonym', 'wordFamily', 'collocation'] as const)
+  const groups = (['synonym', 'antonym', 'wordFamily', 'collocation', 'related'] as const)
     .map((rel) => ({ rel, items: graph?.relations.filter((r) => r.relation === rel) ?? [] }))
     .filter((g) => g.items.length > 0);
 

@@ -1,5 +1,6 @@
 import { API_BASE_URL } from '@/src/config/env';
 import { getAdminToken, getToken } from '@/src/services/storage';
+import { File as ExpoFile, UploadType } from 'expo-file-system';
 
 export class ApiError extends Error {
   statusCode?: number;
@@ -92,6 +93,52 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     throw new ApiError(extractMessage(payload, response.status), url, response.status, payload);
   }
   // Backend wraps successful bodies in {success, data, message}; unwrap to the raw DTO.
+  return unwrapEnvelope(payload) as T;
+}
+
+export async function apiUploadFile<T>(
+  path: string,
+  file: { uri: string; name: string; type: string },
+  fieldName: string,
+  parameters: Record<string, string> = {}
+): Promise<T> {
+  const url = buildUrl(path);
+  const token = await getToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  let result: Awaited<ReturnType<ExpoFile['upload']>>;
+  try {
+    result = await new ExpoFile(file.uri).upload(url, {
+      uploadType: UploadType.MULTIPART,
+      fieldName,
+      mimeType: file.type,
+      headers,
+      parameters,
+    });
+  } catch (error) {
+    throw new ApiError(
+      `Không thể tải file lên máy chủ (${url}).`,
+      url,
+      undefined,
+      error instanceof Error ? error.message : undefined
+    );
+  }
+
+  let payload: unknown = null;
+  try {
+    payload = JSON.parse(result.body);
+  } catch {
+    if (result.status >= 200 && result.status < 300) {
+      throw new ApiError('Máy chủ trả về dữ liệu không hợp lệ khi tải file.', url, result.status);
+    }
+  }
+
+  if (result.status < 200 || result.status >= 300) {
+    throw new ApiError(extractMessage(payload, result.status), url, result.status, payload);
+  }
   return unwrapEnvelope(payload) as T;
 }
 

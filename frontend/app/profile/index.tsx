@@ -45,6 +45,7 @@ export default function ProfileScreen() {
   const [hasOwnKey, setHasOwnKey] = useState(false);
   const [keyBusy, setKeyBusy] = useState(false);
   const [ttsStatus, setTtsStatus] = useState<TtsStatus>('idle');
+  const [ttsError, setTtsError] = useState<string | null>(null);
   const [cacheSize, setCacheSize] = useState(0);
 
   const load = useCallback(async () => {
@@ -86,16 +87,17 @@ export default function ProfileScreen() {
   };
 
   const testVoice = async () => {
+    setTtsError(null);
     setTtsStatus('creating');
     try {
-      await speakText('Hello! I am George, your TOEIC pronunciation coach.', {
+      const result = await speakText('Hello! I am George, your TOEIC pronunciation coach.', {
         onStatus: setTtsStatus,
-        onDone: () => setTtsStatus('idle'),
-        onError: () => setTtsStatus('idle'),
+        onError: (ttsFailure) => setTtsError(ttsFailure.message),
       });
-      setTtsStatus('idle');
-    } catch {
-      setTtsStatus('idle');
+      setTtsStatus(result);
+    } catch (ttsFailure) {
+      setTtsStatus('error');
+      setTtsError(ttsFailure instanceof Error ? ttsFailure.message : 'Không phát được audio.');
     }
   };
 
@@ -182,10 +184,13 @@ export default function ProfileScreen() {
       <SectionTitle title="Giọng đọc" />
       <GlassCard>
         <Text style={styles.voiceNote}>
-          Mặc định: giọng George do backend quản lý khóa — bạn không cần nhập gì.
+          {hasOwnKey
+            ? 'Đang dùng khóa Speechify riêng đã lưu trên máy này; yêu cầu được gửi trực tiếp tới Speechify.'
+            : 'Đang dùng giọng George qua backend; bạn không cần nhập khóa trên thiết bị.'}
         </Text>
         <GlassButton title="🔊 Nghe thử giọng George" variant="outline" onPress={testVoice} style={styles.cta} />
         {ttsStatus !== 'idle' ? <Text style={styles.voiceStatus}>{ttsStatusLabel(ttsStatus)}</Text> : null}
+        {ttsError ? <Text style={styles.voiceError}>{ttsError}</Text> : null}
         <Text style={styles.voiceCache}>Bộ nhớ đệm audio trên máy: {formatBytes(cacheSize)}</Text>
         <GlassButton title="Xoá bộ nhớ đệm audio" variant="ghost" onPress={clearCache} />
       </GlassCard>
@@ -193,8 +198,8 @@ export default function ProfileScreen() {
       <GlassCard>
         <Text style={styles.ownKeyTitle}>Khóa Speechify của riêng bạn (tùy chọn)</Text>
         <Text style={styles.ownKeyDesc}>
-          Chỉ dùng khi bạn muốn app gọi Speechify trực tiếp thay vì qua backend. Khóa chỉ lưu trên máy
-          này, không gửi đi đâu khác.
+          Chỉ dùng khi bạn muốn app gọi Speechify trực tiếp thay vì qua backend. Khóa được lưu trên máy
+          này và gửi tới Speechify khi tạo giọng đọc.
         </Text>
         {hasOwnKey ? (
           <View>
@@ -251,6 +256,7 @@ const styles = StyleSheet.create({
   achDesc: { fontSize: 13, color: colors.inkSoft, marginTop: 2 },
   voiceNote: { fontSize: 13, color: colors.inkSoft, lineHeight: 19 },
   voiceStatus: { fontSize: 13, color: colors.primary, marginTop: 6, fontWeight: '600' },
+  voiceError: { fontSize: 13, color: colors.danger, marginTop: 6 },
   voiceCache: { fontSize: 13, color: colors.inkSoft, marginTop: 6 },
   ownKeyTitle: { fontSize: 15, fontWeight: '800', color: colors.ink },
   ownKeyDesc: { fontSize: 13, color: colors.inkSoft, marginTop: 4, lineHeight: 19 },

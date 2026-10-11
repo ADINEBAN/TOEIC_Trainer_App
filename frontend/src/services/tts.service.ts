@@ -23,7 +23,7 @@ export const SPEECHIFY_MODEL = 'simba-3.2';
 export const SPEECHIFY_VOICE_ID = TTS_VOICE; // "george"
 export const SPEECHIFY_VOICE_NAME = 'George';
 const DIRECT_SPEECHIFY_URL = 'https://api.speechify.ai/v1/audio/speech';
-const CACHE_DIR = 'toeic-tts-cache';
+const CACHE_DIR = 'toeic-tts-cache-v2';
 
 export type TtsStatus =
   | 'idle'
@@ -128,7 +128,7 @@ function base64ToBytes(base64: string): Uint8Array {
   return bytes;
 }
 
-// Bytes -> base64 for the new expo-file-system File.write(string) path.
+// Bytes -> base64 for data URIs on web.
 function bytesToBase64(bytes: Uint8Array): string {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
   let out = '';
@@ -210,7 +210,7 @@ async function getOrCreateAudioFile(text: string, voice: string, status: (s: Tts
     const dir = getCacheDir();
     const file = new FileSystem.File(dir, `george-${key}.mp3`);
     file.create({ overwrite: true });
-    file.write(bytesToBase64(bytes));
+    file.write(bytes);
     memoryCache.set(key, file.uri);
     status('playing-george');
     return file.uri;

@@ -10,6 +10,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -38,6 +39,13 @@ public class GlobalExceptionHandler {
             message = "Dữ liệu gửi lên không hợp lệ.";
         }
         return build(HttpStatus.BAD_REQUEST, message, request, null);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Map<String, Object>>> handleUploadTooLarge(
+            MaxUploadSizeExceededException ex, HttpServletRequest request) {
+        return build(HttpStatus.PAYLOAD_TOO_LARGE,
+                "File tải lên vượt quá giới hạn 20MB.", request, null);
     }
 
     @ExceptionHandler(AccessDeniedException.class)

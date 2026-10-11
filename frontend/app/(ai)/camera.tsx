@@ -36,24 +36,26 @@ export default function CameraScreen() {
         return;
       }
       const res = fromCamera
-        ? await ImagePicker.launchCameraAsync({ quality: 0.8 })
-        : await ImagePicker.launchImageLibraryAsync({ quality: 0.8 });
+        ? await ImagePicker.launchCameraAsync({ quality: 0.7 })
+        : await ImagePicker.launchImageLibraryAsync({ quality: 0.7 });
       if (!res.canceled && res.assets[0]) {
-        setImageUri(res.assets[0].uri);
+        const uri = res.assets[0].uri;
+        setImageUri(uri);
         setResult(null);
         setSaved(false);
+        setEditedName('');
+        await analyze(uri);
       }
     } catch {
       setError('Không mở được camera/thư viện ảnh.');
     }
   };
 
-  const analyze = async () => {
-    if (!imageUri) return;
+  const analyze = async (uri: string) => {
     setAnalyzing(true);
     setError(null);
     try {
-      const r = await aiService.recognizePhoto(imageUri);
+      const r = await aiService.recognizePhoto(uri);
       setResult(r);
       setEditedName(r.englishName);
     } catch (e) {
@@ -105,8 +107,8 @@ export default function CameraScreen() {
       {imageUri ? (
         <GlassCard>
           <Image source={{ uri: imageUri }} style={styles.preview} resizeMode="cover" />
-          {!result && !analyzing ? (
-            <GlassButton title="Nhận diện vật thể" onPress={analyze} style={styles.cta} />
+          {!result && !analyzing && error ? (
+            <GlassButton title="Thử nhận diện lại" onPress={() => analyze(imageUri)} style={styles.cta} />
           ) : null}
         </GlassCard>
       ) : null}

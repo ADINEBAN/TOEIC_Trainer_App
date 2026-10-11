@@ -281,7 +281,7 @@ public class AiService {
         AiProxyResult r = ai.chat(userId, "photo", List.of(
                         Map.of("role", "system", "content", system),
                         Map.<String, Object>of("role", "user", "content", List.of(textPart, imagePart))),
-                visionModel, 0.2);
+                visionModel, 0.2, 256);
 
         Map<String, Object> parsed = parseJsonObject(AiClient.extractJson(r.content()));
         String foundWord = String.valueOf(parsed.getOrDefault("word", "")).trim();

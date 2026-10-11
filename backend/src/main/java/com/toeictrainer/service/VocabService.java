@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -40,7 +41,8 @@ public class VocabService {
 
     @Transactional(readOnly = true)
     public Page<Map<String, Object>> searchVocab(String topic, String q, int page, int size) {
-        return vocabulary.search(blankToNull(topic), blankToNull(q), PageRequest.of(page, Math.min(size, 100)))
+        return vocabulary.search(blankToEmpty(topic), blankToEmpty(q).toLowerCase(Locale.ROOT),
+                        PageRequest.of(page, Math.min(size, 100)))
                 .map(this::toVocabMap);
     }
 
@@ -310,8 +312,8 @@ public class VocabService {
         return m;
     }
 
-    private static String blankToNull(String s) {
-        return (s == null || s.isBlank()) ? null : s.trim();
+    private static String blankToEmpty(String s) {
+        return s == null || s.isBlank() ? "" : s.trim();
     }
 
     private static String strOrEmpty(String s) {

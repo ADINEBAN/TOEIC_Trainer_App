@@ -60,6 +60,10 @@ export default function DocsScreen() {
       const res = await DocumentPicker.getDocumentAsync({ type: ACCEPTED, copyToCacheDirectory: true });
       if (res.canceled || !res.assets[0]) return;
       const file = res.assets[0];
+      if (file.size !== undefined && file.size > 20 * 1024 * 1024) {
+        setError('File quá lớn. Vui lòng chọn file nhỏ hơn 20MB.');
+        return;
+      }
       setUploading(true);
       const { analysisId } = await aiService.uploadDoc(file.uri, file.name, file.mimeType ?? 'application/octet-stream');
       setUploading(false);

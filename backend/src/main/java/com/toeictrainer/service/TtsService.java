@@ -1,5 +1,7 @@
 package com.toeictrainer.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.toeictrainer.common.ApiException;
 import com.toeictrainer.domain.TtsCache;
 import com.toeictrainer.repo.TtsCacheRepository;
@@ -11,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 
+import java.util.Base64;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HexFormat;
@@ -31,17 +34,20 @@ public class TtsService {
 
     private final TtsCacheRepository cache;
     private final RestClient restClient;
+    private final ObjectMapper objectMapper;
     private final String apiKey;
     private final String apiUrl;
     private final String model;
 
     public TtsService(TtsCacheRepository cache,
                       RestClient restClient,
+                      ObjectMapper objectMapper,
                       @Value("${app.speechify.api-key:}") String apiKey,
                       @Value("${app.speechify.api-url}") String apiUrl,
                       @Value("${app.speechify.model}") String model) {
         this.cache = cache;
         this.restClient = restClient;
+        this.objectMapper = objectMapper;
         this.apiKey = apiKey == null ? "" : apiKey.trim();
         this.apiUrl = apiUrl;
         this.model = model;
@@ -95,14 +101,21 @@ public class TtsService {
                 "audio_format", "mp3",
                 "model", model);
         try {
-            byte[] audio = restClient.post()
+            String response = restClient.post()
                     .uri(apiUrl)
                     .header("Authorization", "Bearer " + apiKey)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
                     .retrieve()
-                    .body(byte[].class);
-            if (audio == null || audio.length == 0) {
+                    .body(String.class);
+            JsonNode payload = objectMapper.readTree(response);
+            String encodedAudio = payload.path("audio_data").asText("");
+            if (encodedAudio.isBlank()) {
+                throw ApiException.serviceUnavailable(
+                        "Speechify không trả về dữ liệu âm thanh. Vui lòng kiểm tra API key và cấu hình giọng đọc.");
+            }
+            byte[] audio = Base64.getDecoder().decode(encodedAudio);
+            if (audio.length == 0) {
                 throw ApiException.serviceUnavailable(
                         "Speechify trả về âm thanh trống. Vui lòng thử lại sau.");
             }

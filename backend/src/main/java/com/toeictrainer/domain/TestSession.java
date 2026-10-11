@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnTransformer;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -30,9 +31,11 @@ public class TestSession {
     private String kind = "MINI"; // MINI|HALF|FULL
 
     @Column(name = "question_ids", nullable = false, columnDefinition = "jsonb")
+    @ColumnTransformer(write = "?::jsonb")
     private String questionIds = "[]";
 
     @Column(nullable = false, columnDefinition = "jsonb")
+    @ColumnTransformer(write = "?::jsonb")
     private String answers = "[]";
 
     @Column(nullable = false)

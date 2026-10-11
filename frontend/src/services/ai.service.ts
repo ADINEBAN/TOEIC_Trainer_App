@@ -1,4 +1,4 @@
-import { apiDownload, apiRequest } from '@/src/services/api.client';
+import { apiDownload, apiRequest, apiUploadFile } from '@/src/services/api.client';
 import type {
   AiAvailability,
   DocAnalysis,
@@ -17,8 +17,46 @@ export const aiService = {
   },
 
   // --- 6.1 Semantic word network (cached in word_relations by the backend) ---
-  semanticGraph(word: string) {
-    return apiRequest<SemanticGraph>(`/api/ai/semantic?word=${encodeURIComponent(word)}`);
+  async semanticGraph(word: string): Promise<SemanticGraph> {
+    const response = await apiRequest<{
+      word?: string;
+      center?: SemanticGraph['center'];
+      relations?: Array<{
+        word?: string;
+        relation?: string;
+        relationType?: string;
+        example?: string | null;
+        exampleEn?: string | null;
+      }>;
+    }>(`/api/ai/semantic?word=${encodeURIComponent(word)}`);
+
+    const centerWord = response.center?.word ?? response.word;
+    if (!centerWord || !Array.isArray(response.relations)) {
+      throw new Error('Máy chủ trả về mạng từ không đúng định dạng.');
+    }
+
+    const relationNames: Record<string, SemanticGraph['relations'][number]['relation']> = {
+      synonym: 'synonym',
+      antonym: 'antonym',
+      wordFamily: 'wordFamily',
+      word_family: 'wordFamily',
+      collocation: 'collocation',
+      related: 'related',
+    };
+
+    return {
+      center: response.center ?? { word: centerWord },
+      relations: response.relations.flatMap((relation) => {
+        const name = relation.relation ?? relation.relationType ?? '';
+        const mappedName = relationNames[name];
+        if (!relation.word || !mappedName) return [];
+        return [{
+          word: relation.word,
+          relation: mappedName,
+          example: relation.example ?? relation.exampleEn ?? null,
+        }];
+      }),
+    };
   },
 
   saveSemanticWord(word: string) {
@@ -26,18 +64,31 @@ export const aiService = {
   },
 
   // --- 6.2 Camera photo-to-name ---
-  recognizePhoto(imageUri: string, fileName = 'photo.jpg') {
-    const form = new FormData();
-    form.append('image', {
-      uri: imageUri,
-      name: fileName,
-      type: 'image/jpeg',
-    } as unknown as Blob);
-    return apiRequest<PhotoWordResult>('/api/ai/photo', {
-      method: 'POST',
-      body: form,
-      multipart: true,
-    });
+  async recognizePhoto(imageUri: string, fileName = 'photo.jpg'): Promise<PhotoWordResult> {
+    const response = await apiUploadFile<{
+      englishName?: string;
+      word?: string;
+      ipa?: string | null;
+      meaningVi: string;
+      exampleEn?: string | null;
+      imageUrl?: string;
+      imagePath?: string;
+    }>(
+      '/api/ai/photo',
+      { uri: imageUri, name: fileName, type: 'image/jpeg' },
+      'image'
+    );
+    const englishName = response.englishName ?? response.word;
+    if (!englishName) {
+      throw new Error('Máy chủ không trả về tên vật thể nhận diện được.');
+    }
+    return {
+      englishName,
+      ipa: response.ipa,
+      meaningVi: response.meaningVi,
+      exampleEn: response.exampleEn,
+      imageUrl: response.imageUrl ?? response.imagePath ?? imageUri,
+    };
   },
 
   savePhotoWord(payload: {
@@ -52,21 +103,86 @@ export const aiService = {
 
   // --- 6.3 Docs upload -> analysis ---
   uploadDoc(fileUri: string, fileName: string, mimeType: string) {
-    const form = new FormData();
-    form.append('file', { uri: fileUri, name: fileName, type: mimeType } as unknown as Blob);
-    return apiRequest<{ analysisId: string }>('/api/ai/docs/upload', {
-      method: 'POST',
-      body: form,
-      multipart: true,
-    });
+    return apiUploadFile<{ analysisId: string }>(
+      '/api/ai/docs/upload',
+      { uri: fileUri, name: fileName, type: mimeType },
+      'file'
+    );
   },
 
-  docAnalysis(analysisId: string) {
-    return apiRequest<DocAnalysis>(`/api/ai/docs/${analysisId}`);
+  async docAnalysis(analysisId: string): Promise<DocAnalysis> {
+    const response = await apiRequest<{
+      id: string;
+      filename?: string;
+      fileName?: string;
+      createdAt: string;
+      status?: DocAnalysis['status'];
+      progress?: number;
+      result?: {
+        vocabulary?: Array<{ word: string; meaningVi: string }>;
+        grammarPoints?: Array<string | { title?: string; explanation?: string }>;
+        tips?: string[];
+        questions?: Array<{
+          id?: string;
+          part: number;
+          prompt: string;
+          options: string[];
+          answerIndex?: number;
+          correctIndex?: number;
+          explanation?: string;
+        }>;
+      };
+      wordsAdded?: number;
+      vocabAdded?: DocAnalysis['vocabAdded'];
+      grammarPoints?: DocAnalysis['grammarPoints'];
+      tips?: DocAnalysis['tips'];
+      questions?: DocAnalysis['questions'];
+      error?: string | null;
+    }>(`/api/ai/docs/${analysisId}`);
+
+    const result = response.result;
+    return {
+      id: response.id,
+      fileName: response.fileName ?? response.filename ?? 'Tài liệu',
+      status: response.status ?? 'DONE',
+      progress: response.progress ?? 100,
+      createdAt: response.createdAt,
+      vocabAdded: response.vocabAdded ?? result?.vocabulary,
+      grammarPoints: response.grammarPoints ?? result?.grammarPoints?.map((point) =>
+        typeof point === 'string' ? point : [point.title, point.explanation].filter(Boolean).join(': ')
+      ),
+      tips: response.tips ?? result?.tips,
+      questions: response.questions ?? result?.questions?.map((question, index) => ({
+        id: question.id ?? `${analysisId}-${index}`,
+        part: question.part,
+        prompt: question.prompt,
+        options: question.options,
+        correctIndex: question.correctIndex ?? question.answerIndex ?? 0,
+        explanation: question.explanation ?? '',
+      })),
+      error: response.error,
+    };
   },
 
-  docHistory() {
-    return apiRequest<DocAnalysis[]>('/api/ai/docs/history');
+  async docHistory(): Promise<DocAnalysis[]> {
+    const response = await apiRequest<Array<{
+      id: string;
+      filename?: string;
+      fileName?: string;
+      createdAt: string;
+      status?: DocAnalysis['status'];
+      progress?: number;
+      wordsAdded?: number;
+    }>>('/api/ai/docs/history');
+
+    return response.map((item) => ({
+      id: item.id,
+      fileName: item.fileName ?? item.filename ?? 'Tài liệu',
+      status: item.status ?? 'DONE',
+      progress: item.progress ?? 100,
+      createdAt: item.createdAt,
+      vocabAdded: item.wordsAdded ? [] : undefined,
+    }));
   },
 
   // --- 6.4 Speaking coach ---
@@ -75,18 +191,12 @@ export const aiService = {
   },
 
   scoreSpeaking(audioUri: string, sampleId: string) {
-    const form = new FormData();
-    form.append('audio', {
-      uri: audioUri,
-      name: 'speaking.m4a',
-      type: 'audio/m4a',
-    } as unknown as Blob);
-    form.append('sampleId', sampleId);
-    return apiRequest<SpeakingResult>('/api/ai/speaking/score', {
-      method: 'POST',
-      body: form,
-      multipart: true,
-    });
+    return apiUploadFile<SpeakingResult>(
+      '/api/ai/speaking/score',
+      { uri: audioUri, name: 'speaking.m4a', type: 'audio/m4a' },
+      'audio',
+      { sampleId }
+    );
   },
 
   speakingHistory() {
@@ -102,19 +212,12 @@ export const aiService = {
   },
 
   answerHandsfree(sessionId: string, itemId: string, audioUri: string) {
-    const form = new FormData();
-    form.append('audio', {
-      uri: audioUri,
-      name: 'answer.m4a',
-      type: 'audio/m4a',
-    } as unknown as Blob);
-    form.append('sessionId', sessionId);
-    form.append('itemId', itemId);
-    return apiRequest<HandsfreeAnswer>('/api/ai/handsfree/answer', {
-      method: 'POST',
-      body: form,
-      multipart: true,
-    });
+    return apiUploadFile<HandsfreeAnswer>(
+      '/api/ai/handsfree/answer',
+      { uri: audioUri, name: 'answer.m4a', type: 'audio/m4a' },
+      'audio',
+      { sessionId, itemId }
+    );
   },
 
   // TTS bytes from backend proxy: GET /api/tts?text=...&voice=george
